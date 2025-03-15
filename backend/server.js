@@ -39,17 +39,20 @@ const contestSchema = new mongoose.Schema({
 
 const Contest = mongoose.model('Contest', contestSchema);
 
+// Set the date filter - January 1, 2024
+const START_DATE_FILTER = new Date('2024-01-01T00:00:00Z');
+
 // API Routes
-app.get('/api/contests', async (req, res) => {
+app.get('/api/v1/contests', async (req, res) => {
   try {
-    const contests = await Contest.find();
+    const contests = await Contest.find({ startTime: { $gte: START_DATE_FILTER } });
     res.json(contests);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/contests/solution', async (req, res) => {
+app.post('/api/v1/contests/solution', async (req, res) => {
   const { contestId, solutionUrl } = req.body;
   
   try {
@@ -62,6 +65,10 @@ app.post('/api/contests/solution', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.get("/api/v1/ping", (req, res) => {
+  res.json({message: "pong"});
 });
 
 // ------------------------------------------------------------------------------------------------------------------------
@@ -209,13 +216,10 @@ const fetchYouTubeSolutionLinks = async () => {
   }
 };
 
-
-
-
 // Update contest solutions by matching with YouTube videos
 const updateContestSolutions = async (solutions) => {
   try {
-    const contests = await Contest.find();
+    const contests = await Contest.find({ startTime: { $gte: START_DATE_FILTER } });
     let updatedCount = 0;
     
     for (const contest of contests) {
@@ -386,201 +390,207 @@ const updateContestSolutions = async (solutions) => {
           // For title format in your examples: "**Leetcode Weekly Contest 439**"
           if (platform === 'LeetCode' && normalizedKey.includes('weekly') && 
               contestName.includes('Weekly')) {
-            const numFromKey = normalizedKey.match(/\d+/);
-            const numFromContest = normalizedContestName.match(/\d+/);
-            
-            if (numFromKey && numFromContest && numFromKey[0] === numFromContest[0]) {
-              contest.solutionUrl = url;
-              await contest.save();
-              updatedCount++;
-              break;
+                const numFromKey = normalizedKey.match(/\d+/);
+                const numFromContest = normalizedContestName.match(/\d+/);
+                
+                if (numFromKey && numFromContest && numFromKey[0] === numFromContest[0]) {
+                  contest.solutionUrl = url;
+                  await contest.save();
+                  updatedCount++;
+                  break;
+                }
+              }
             }
           }
         }
+        
+        console.log(`Updated solution links for ${updatedCount} contests`);
+      } catch (error) {
+        console.error('Error updating contest solutions:', error);
       }
-    }
+    };
     
-    console.log(`Updated solution links for ${updatedCount} contests`);
-  } catch (error) {
-    console.error('Error updating contest solutions:', error);
-  }
-};
-
-
-
-
-
-
-
-
-// ----------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-// Fetch contests from Codeforces
-const fetchCodeforcesContests = async () => {
-  try {
-    const response = await axios.get('https://codeforces.com/api/contest.list');
-    const contests = response.data.result.map(contest => ({
-      name: contest.name,
-      platform: 'Codeforces',
-      url: `https://codeforces.com/contest/${contest.id}`,
-      startTime: new Date(contest.startTimeSeconds * 1000),
-      duration: contest.durationSeconds,
-      endTime: new Date((contest.startTimeSeconds + contest.durationSeconds) * 1000)
-    }));
     
-    return contests;
-  } catch (error) {
-    console.error('Error fetching Codeforces contests:', error);
-    return [];
-  }
-};
-
-// Fetch contests from CodeChef
-const fetchCodeChefContests = async () => {
-  try {
-    const response = await axios.get('https://www.codechef.com/api/list/contests/all');
+    // ----------------------------------------------------------------------------------------------------------------------------
     
-    // Verify the response structure
-    if (!response.data || (!response.data.future_contests && !response.data.present_contests && !response.data.past_contests)) {
-      console.error('Invalid response structure from CodeChef API:', response.data);
-      return [];
-    }
     
-    // Combine all contest types
-    const allContests = [
-      ...(response.data.future_contests || []),
-      ...(response.data.present_contests || []),
-      ...(response.data.past_contests || [])
-    ];
-    
-    // Map to our schema
-    const contests = allContests.map(contest => {
-      if (!contest.contest_name || !contest.contest_code || !contest.contest_start_date || !contest.contest_end_date) {
-        return null;
+    // Fetch contests from Codeforces
+    const fetchCodeforcesContests = async () => {
+      try {
+        const response = await axios.get('https://codeforces.com/api/contest.list');
+        const contests = response.data.result
+          .filter(contest => new Date(contest.startTimeSeconds * 1000) >= START_DATE_FILTER)
+          .map(contest => ({
+            name: contest.name,
+            platform: 'Codeforces',
+            url: `https://codeforces.com/contest/${contest.id}`,
+            startTime: new Date(contest.startTimeSeconds * 1000),
+            duration: contest.durationSeconds,
+            endTime: new Date((contest.startTimeSeconds + contest.durationSeconds) * 1000)
+          }));
+        
+        return contests;
+      } catch (error) {
+        console.error('Error fetching Codeforces contests:', error);
+        return [];
       }
-      
-      return {
-        name: contest.contest_name,
-        platform: 'CodeChef',
-        url: `https://www.codechef.com/${contest.contest_code}`,
-        startTime: new Date(contest.contest_start_date),
-        endTime: new Date(contest.contest_end_date),
-        duration: (new Date(contest.contest_end_date) - new Date(contest.contest_start_date)) / 1000
-      };
-    }).filter(contest => contest !== null);
+    };
     
-    return contests;
-  } catch (error) {
-    console.error('Error fetching CodeChef contests:', error.message);
-    return [];
-  }
-};
-
-// Fetch contests from LeetCode
-const fetchLeetCodeContests = async () => {
-  try {
-    const response = await axios.post('https://leetcode.com/graphql', {
-      query: `
-        {
-          allContests {
-            title
-            titleSlug
-            startTime
-            duration
-          }
+    // Fetch contests from CodeChef
+    const fetchCodeChefContests = async () => {
+      try {
+        const response = await axios.get('https://www.codechef.com/api/list/contests/all');
+        
+        // Verify the response structure
+        if (!response.data || (!response.data.future_contests && !response.data.present_contests && !response.data.past_contests)) {
+          console.error('Invalid response structure from CodeChef API:', response.data);
+          return [];
         }
-      `
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
+        
+        // Combine all contest types
+        const allContests = [
+          ...(response.data.future_contests || []),
+          ...(response.data.present_contests || []),
+          ...(response.data.past_contests || [])
+        ];
+        
+        // Map to our schema and filter by date
+        const contests = allContests
+          .filter(contest => new Date(contest.contest_start_date) >= START_DATE_FILTER)
+          .map(contest => {
+            if (!contest.contest_name || !contest.contest_code || !contest.contest_start_date || !contest.contest_end_date) {
+              return null;
+            }
+            
+            return {
+              name: contest.contest_name,
+              platform: 'CodeChef',
+              url: `https://www.codechef.com/${contest.contest_code}`,
+              startTime: new Date(contest.contest_start_date),
+              endTime: new Date(contest.contest_end_date),
+              duration: (new Date(contest.contest_end_date) - new Date(contest.contest_start_date)) / 1000
+            };
+          }).filter(contest => contest !== null);
+        
+        return contests;
+      } catch (error) {
+        console.error('Error fetching CodeChef contests:', error.message);
+        return [];
       }
+    };
+    
+    // Fetch contests from LeetCode
+    const fetchLeetCodeContests = async () => {
+      try {
+        const response = await axios.post('https://leetcode.com/graphql', {
+          query: `
+            {
+              allContests {
+                title
+                titleSlug
+                startTime
+                duration
+              }
+            }
+          `
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.data || !response.data.data || !response.data.data.allContests) {
+          console.error('Invalid response structure from LeetCode API:', response.data);
+          return [];
+        }
+        
+        const contests = response.data.data.allContests
+          .filter(contest => new Date(contest.startTime * 1000) >= START_DATE_FILTER)
+          .map(contest => {
+            if (!contest.title || !contest.titleSlug || contest.startTime === undefined || contest.duration === undefined) {
+              return null;
+            }
+            
+            return {
+              name: contest.title,
+              platform: 'LeetCode',
+              url: `https://leetcode.com/contest/${contest.titleSlug}`,
+              startTime: new Date(contest.startTime * 1000),
+              duration: contest.duration,
+              endTime: new Date((contest.startTime + contest.duration / 60) * 1000)
+            };
+          }).filter(contest => contest !== null);
+        
+        return contests;
+      } catch (error) {
+        console.error('Error fetching LeetCode contests:', error.message);
+        return [];
+      }
+    };
+    
+    // -----------------------------------------------------------------------------------------------------------------------
+    
+    // Clean up old contests from database (optional)
+    const cleanupOldContests = async () => {
+      try {
+        const result = await Contest.deleteMany({ startTime: { $lt: START_DATE_FILTER } });
+        console.log(`Cleaned up ${result.deletedCount} contests from before 2024`);
+      } catch (error) {
+        console.error('Error cleaning up old contests:', error);
+      }
+    };
+    
+    // Sync contests from all platforms
+    const syncContests = async () => {
+      try {
+        console.log('Starting contest sync...');
+        
+        const [codeforcesContests, codeChefContests, leetCodeContests] = await Promise.all([
+          fetchCodeforcesContests(),
+          fetchCodeChefContests(),
+          fetchLeetCodeContests()
+        ]);
+        
+        console.log(`Fetched: ${codeforcesContests.length} Codeforces, ${codeChefContests.length} CodeChef, ${leetCodeContests.length} LeetCode contests from 2024 onwards`);
+        
+        const allContests = [...codeforcesContests, ...codeChefContests, ...leetCodeContests];
+        
+        // Bulk update to improve performance
+        const updatePromises = allContests.map(contest => 
+          Contest.findOneAndUpdate(
+            { name: contest.name, platform: contest.platform },
+            contest,
+            { upsert: true, new: true }
+          )
+        );
+        
+        await Promise.all(updatePromises);
+        console.log('Contests synced successfully');
+        
+        // After syncing contests, fetch and update YouTube solutions
+        const solutions = await fetchYouTubeSolutionLinks();
+        await updateContestSolutions(solutions);
+      } catch (error) {
+        console.error('Error syncing contests:', error);
+      }
+    };
+    
+    // Schedule jobs
+    cron.schedule('0 */12 * * *', syncContests); // Every 12 hours
+    cron.schedule('0 */24 * * *', async () => {
+      const solutions = await fetchYouTubeSolutionLinks();
+      await updateContestSolutions(solutions);
+    }); // Every 24 hours
+    
+    // Initial actions
+    syncContests();
+    cleanupOldContests(); // Optional: run this once to clean up old contests
+    
+    // Default route
+    app.get("/", (req, res) => {
+      res.send("Contest Tracker API is running! Only tracking contests from 2024 onwards.");
     });
     
-    if (!response.data || !response.data.data || !response.data.data.allContests) {
-      console.error('Invalid response structure from LeetCode API:', response.data);
-      return [];
-    }
-    
-    const contests = response.data.data.allContests.map(contest => {
-      if (!contest.title || !contest.titleSlug || contest.startTime === undefined || contest.duration === undefined) {
-        return null;
-      }
-      
-      return {
-        name: contest.title,
-        platform: 'LeetCode',
-        url: `https://leetcode.com/contest/${contest.titleSlug}`,
-        startTime: new Date(contest.startTime * 1000),
-        duration: contest.duration,
-        endTime: new Date((contest.startTime + contest.duration / 60) * 1000)
-      };
-    }).filter(contest => contest !== null);
-    
-    return contests;
-  } catch (error) {
-    console.error('Error fetching LeetCode contests:', error.message);
-    return [];
-  }
-};
-
-// -----------------------------------------------------------------------------------------------------------------------
-
-
-
-
-// Sync contests from all platforms
-const syncContests = async () => {
-  try {
-    console.log('Starting contest sync...');
-    
-    const [codeforcesContests, codeChefContests, leetCodeContests] = await Promise.all([
-      fetchCodeforcesContests(),
-      fetchCodeChefContests(),
-      fetchLeetCodeContests()
-    ]);
-    
-    console.log(`Fetched: ${codeforcesContests.length} Codeforces, ${codeChefContests.length} CodeChef, ${leetCodeContests.length} LeetCode contests`);
-    
-    const allContests = [...codeforcesContests, ...codeChefContests, ...leetCodeContests];
-    
-    // Bulk update to improve performance
-    const updatePromises = allContests.map(contest => 
-      Contest.findOneAndUpdate(
-        { name: contest.name, platform: contest.platform },
-        contest,
-        { upsert: true, new: true }
-      )
-    );
-    
-    await Promise.all(updatePromises);
-    console.log('Contests synced successfully');
-    
-    // After syncing contests, fetch and update YouTube solutions
-    const solutions = await fetchYouTubeSolutionLinks();
-    await updateContestSolutions(solutions);
-  } catch (error) {
-    console.error('Error syncing contests:', error);
-  }
-};
-
-// Schedule jobs
-cron.schedule('0 */12 * * *', syncContests); // Every 12 hours
-cron.schedule('0 */24 * * *', async () => {
-  const solutions = await fetchYouTubeSolutionLinks();
-  await updateContestSolutions(solutions);
-}); // Every 24 hours
-
-// Initial sync
-syncContests();
-
-// Default route
-app.get("/", (req, res) => {
-  res.send("Contest Tracker API is running!");
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
