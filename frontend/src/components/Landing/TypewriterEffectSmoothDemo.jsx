@@ -26,7 +26,7 @@ export function TypewriterEffectSmoothDemo() {
   ];
   return (
     (<div className="flex flex-col items-center justify-center h-[40rem]  ">
-      <p className="text-neutral-600 dark:text-neutral-200 text-xs sm:text-base p-4  ">
+      <p className="text-black dark:text-neutral-200 text-xs sm:text-base p-4  ">
         The road to Competitive Programming starts from here.
         On this channel, we offer video solutions to CP contests, helping countless individuals in upsolving contests.
       </p>

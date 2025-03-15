@@ -389,7 +389,7 @@ const Home = () => {
 
                       <h3 className="text-xl font-bold line-clamp-2 mb-3 h-14">{contest.name}</h3>
 
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm mb-4">
+                      <div className="grid grid-cols-2 bg-slate-300 gap-x-2 gap-y-1 text-sm mb-4">
                         <div className="font-semibold">Date:</div>
                         <div>{new Date(contest.startTime).toLocaleDateString()}</div>
                         
