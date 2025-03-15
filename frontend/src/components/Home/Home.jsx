@@ -352,7 +352,7 @@ const Home = () => {
               return (
                 <div 
                   key={contest._id} 
-                  className="bg-slate-300 dark:bg-gray-800 transition-all hover:shadow-xl rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+                  className="bg-slate-300 transition-all hover:shadow-xl rounded-lg shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
                 >
                   <div className="relative">
                     <div className="absolute top-0 right-0 mt-3 mr-3">
