@@ -17,9 +17,11 @@ The Contest Tracker API is a Node.js-based backend service that tracks coding co
 - Google APIs (YouTube) – Fetching YouTube solution links.
 - dotenv – Managing environment variables.
 - cron – Scheduling periodic updates.
+- React.js – Frontend framework for building the UI.
+- React Router – Managing navigation between pages.
 
 ## find the video demo [here](https://drive.google.com/file/d/1AWJUPYPoeW3Jc0FF5lzWcpDNQFNQdOoA/view?usp=sharing)
-# find the live demo [here]()
+# find the live demo [here](https://tle-contest-tracker-api.vercel.app/)
 
 
 ### frontend 
