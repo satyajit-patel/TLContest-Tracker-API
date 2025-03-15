@@ -280,7 +280,7 @@ const Home = () => {
         </header>
 
         <div className="flex flex-col md:flex-row gap-6 mb-6">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+          <div className="bg-white p-4 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold mb-2">Platforms</h3>
             <div className="flex flex-wrap gap-2">
               {[
@@ -303,7 +303,7 @@ const Home = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+          <div className="bg-white p-4 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold mb-2">Status</h3>
             <div className="flex flex-wrap gap-2">
               {[
@@ -317,7 +317,7 @@ const Home = () => {
                   className={`px-3 py-1 rounded-full transition-colors ${
                     filters[status.id] 
                       ? status.color
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                      : "bg-gray-200 text-gray-700 dark:text-gray-300"
                   }`}
                 >
                   {status.label}
